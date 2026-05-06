@@ -186,6 +186,14 @@ class SadalesTiklsCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
         field_name = self.consumption_field
 
+        # An object can have multiple meters (e.g. a building with separate
+        # main + auxiliary meters). The API returns each meter as its own
+        # entry; the *object's* consumption is the SUM across all meters
+        # for the same hour. Aggregating per response and then writing back
+        # avoids the trap of overwriting one meter's value with another's.
+        incoming: dict[datetime, float] = {}
+        incoming_statuses: dict[datetime, str] = {}
+
         for mp in response:
             for meter in mp["mList"]:
                 for entry in meter["cList"]:
@@ -238,8 +246,19 @@ class SadalesTiklsCoordinator(DataUpdateCoordinator[CoordinatorData]):
                     # retroactive corrections match the same dict key.
                     cdt_end = cdt_end.replace(minute=0, second=0, microsecond=0)
                     start = cdt_end - timedelta(hours=1)
-                    snapshot.hourly[start] = float(raw)
-                    snapshot.statuses[start] = status
+
+                    incoming[start] = incoming.get(start, 0.0) + float(raw)
+                    # Status: surface any meter's flag if present at this
+                    # hour; otherwise empty (= unflagged across all meters).
+                    if status or start not in incoming_statuses:
+                        incoming_statuses[start] = status
+
+        # Replace the snapshot's hours that this response covers. Hours not
+        # present in the response keep their existing values — important so
+        # a 26h "normal poll" doesn't wipe out the 30-day backfill.
+        for hour, value in incoming.items():
+            snapshot.hourly[hour] = value
+            snapshot.statuses[hour] = incoming_statuses.get(hour, "")
 
         # Bound memory.
         cutoff = datetime.now(RIGA_TZ) - _IN_MEMORY_RETENTION

@@ -57,12 +57,6 @@
   },
   "entity": {
     "sensor": {
-      "last_hour_consumption": {
-        "name": "Last hour consumption"
-      },
-      "today_consumption": {
-        "name": "Today consumption"
-      },
       "yesterday_consumption": {
         "name": "Yesterday consumption"
       },
@@ -72,11 +66,14 @@
       "previous_month_consumption": {
         "name": "Previous month consumption"
       },
+      "most_recent_hour_consumption": {
+        "name": "Most recent hour consumption"
+      },
       "data_lag": {
         "name": "Data lag"
       },
-      "last_hour_status": {
-        "name": "Last hour status"
+      "most_recent_hour_status": {
+        "name": "Most recent hour status"
       }
     }
   }

@@ -175,6 +175,95 @@ async def test_entry_without_cvrst_is_kept(
     assert status == ""
 
 
+async def test_two_meters_under_one_object_are_summed(
+    hass: HomeAssistant, object_list_payload: dict[str, Any]
+) -> None:
+    """Real Sadales Tīkls objects can have multiple meters per object —
+    e.g. a building with main + auxiliary meters. The integration must
+    SUM their values for the same hour, not overwrite.
+
+    Regression for: user with two meters (01274339 + 01274346) saw
+    yesterday=39.84 kWh while the e-st.lv excel showed 279.70 kWh
+    (the actual sum of both meters that day).
+    """
+    entry = _entry()
+    entry.add_to_hass(hass)
+    hour_end = datetime(2026, 5, 5, 4, tzinfo=RIGA_TZ)
+
+    response = [
+        {
+            "mpNr": "MP001",
+            "mList": [
+                {
+                    "mNr": "01274339",
+                    "cList": [
+                        {"cDt": hour_end.isoformat(), "cVV": 5.5, "cVR": 5.5},
+                    ],
+                },
+                {
+                    "mNr": "01274346",
+                    "cList": [
+                        {"cDt": hour_end.isoformat(), "cVV": 7.7, "cVR": 7.7},
+                    ],
+                },
+            ],
+        },
+    ]
+    with aioresponses() as m:
+        m.get(OBJECT_LIST_URL, payload=object_list_payload, status=200)
+        m.get(CONSUMPTION_URL_RE, payload=response, status=200, repeat=True)
+        await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    snapshot = entry.runtime_data.coordinator.data[TARGET_OEIC]
+    [(_, value)] = list(snapshot.hourly.items())
+    assert value == pytest.approx(13.2)  # 5.5 + 7.7
+
+
+async def test_two_metering_points_are_summed(
+    hass: HomeAssistant, object_list_payload: dict[str, Any]
+) -> None:
+    """Same as the multi-meter case but with separate metering points —
+    both should still aggregate to the object level."""
+    entry = _entry()
+    entry.add_to_hass(hass)
+    hour_end = datetime(2026, 5, 5, 4, tzinfo=RIGA_TZ)
+
+    response = [
+        {
+            "mpNr": "MP001",
+            "mList": [
+                {
+                    "mNr": "M-A",
+                    "cList": [
+                        {"cDt": hour_end.isoformat(), "cVV": 1.0, "cVR": 1.0},
+                    ],
+                }
+            ],
+        },
+        {
+            "mpNr": "MP002",
+            "mList": [
+                {
+                    "mNr": "M-B",
+                    "cList": [
+                        {"cDt": hour_end.isoformat(), "cVV": 2.5, "cVR": 2.5},
+                    ],
+                }
+            ],
+        },
+    ]
+    with aioresponses() as m:
+        m.get(OBJECT_LIST_URL, payload=object_list_payload, status=200)
+        m.get(CONSUMPTION_URL_RE, payload=response, status=200, repeat=True)
+        await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    snapshot = entry.runtime_data.coordinator.data[TARGET_OEIC]
+    [(_, value)] = list(snapshot.hourly.items())
+    assert value == pytest.approx(3.5)
+
+
 async def test_cdt_with_microseconds_is_snapped_to_hour(
     hass: HomeAssistant, object_list_payload: dict[str, Any]
 ) -> None:
