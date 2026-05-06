@@ -140,6 +140,95 @@ async def test_first_refresh_can_use_raw_value(
     assert value == 1.5  # cVR was 0.5 higher than cVV in the fixture
 
 
+async def test_entry_without_cvrst_is_kept(
+    hass: HomeAssistant, object_list_payload: dict[str, Any]
+) -> None:
+    """Real API omits `cVRSt` for the all-good case. Entry must be kept,
+    not skipped, and not crash. Regression for the
+    `KeyError: 'cVRSt'` we hit on a real install."""
+    entry = _entry()
+    entry.add_to_hass(hass)
+    hour_end = datetime(2026, 5, 5, 4, tzinfo=RIGA_TZ)
+
+    raw_entry = {
+        "cDt": hour_end.isoformat(),
+        "cVR": 1.5,
+        "cVV": 1.234,
+        # No cVRSt at all — mimics the real API for unflagged readings.
+    }
+    with aioresponses() as m:
+        m.get(OBJECT_LIST_URL, payload=object_list_payload, status=200)
+        m.get(
+            CONSUMPTION_URL_RE,
+            payload=_consumption([raw_entry]),
+            status=200,
+            repeat=True,
+        )
+        await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    snapshot = entry.runtime_data.coordinator.data[TARGET_OEIC]
+    [(_, value)] = list(snapshot.hourly.items())
+    assert value == 1.234
+    # Status stored as empty string (no flag).
+    [(_, status)] = list(snapshot.statuses.items())
+    assert status == ""
+
+
+async def test_entry_without_cdt_is_skipped(
+    hass: HomeAssistant, object_list_payload: dict[str, Any]
+) -> None:
+    """Entries with missing/empty `cDt` are unusable — log + skip, don't
+    crash the coordinator."""
+    entry = _entry()
+    entry.add_to_hass(hass)
+
+    bad_entry = {"cVR": 1.0, "cVV": 1.0}  # no cDt
+    with aioresponses() as m:
+        m.get(OBJECT_LIST_URL, payload=object_list_payload, status=200)
+        m.get(
+            CONSUMPTION_URL_RE,
+            payload=_consumption([bad_entry]),
+            status=200,
+            repeat=True,
+        )
+        await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    snapshot = entry.runtime_data.coordinator.data[TARGET_OEIC]
+    assert snapshot.hourly == {}
+
+
+async def test_entry_with_only_one_value_field_uses_fallback(
+    hass: HomeAssistant, object_list_payload: dict[str, Any]
+) -> None:
+    """If the configured field (cVV by default) is absent but the other is
+    present, fall back rather than skip the hour."""
+    entry = _entry()
+    entry.add_to_hass(hass)
+    hour_end = datetime(2026, 5, 5, 4, tzinfo=RIGA_TZ)
+
+    only_cvr = {
+        "cDt": hour_end.isoformat(),
+        "cVR": 0.42,
+        # No cVV — but we configured cVV as the preferred field.
+    }
+    with aioresponses() as m:
+        m.get(OBJECT_LIST_URL, payload=object_list_payload, status=200)
+        m.get(
+            CONSUMPTION_URL_RE,
+            payload=_consumption([only_cvr]),
+            status=200,
+            repeat=True,
+        )
+        await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    snapshot = entry.runtime_data.coordinator.data[TARGET_OEIC]
+    [(_, value)] = list(snapshot.hourly.items())
+    assert value == 0.42
+
+
 @pytest.mark.parametrize("status", ["U", "N"])
 async def test_skipped_statuses_are_dropped(
     hass: HomeAssistant, object_list_payload: dict[str, Any], status: str

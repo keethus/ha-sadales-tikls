@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
-from typing import Any, Final, TypedDict, cast
+from typing import Any, Final, NotRequired, TypedDict, cast
 
 import aiohttp
 from aiohttp import ClientError, ClientTimeout
@@ -112,12 +112,17 @@ class ConsumptionEntry(TypedDict):
     """One hourly consumption record.
 
     `cDt` uses end-of-hour convention: hour 00–01 → cDt "...T01:00:00...".
+
+    Real-world note: `cVRSt` is omitted by the API when the reading has no
+    flag (i.e. the "all-good" case). Only `cDt` is reliably present in
+    practice — the rest are marked NotRequired so the merge loop can defend
+    itself with `.get()` instead of crashing on a missing key.
     """
 
     cDt: str
-    cVR: float
-    cVV: float
-    cVRSt: str
+    cVR: NotRequired[float]
+    cVV: NotRequired[float]
+    cVRSt: NotRequired[str]
 
 
 class ConsumptionMeter(TypedDict):

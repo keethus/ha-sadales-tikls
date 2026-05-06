@@ -189,15 +189,50 @@ class SadalesTiklsCoordinator(DataUpdateCoordinator[CoordinatorData]):
         for mp in response:
             for meter in mp["mList"]:
                 for entry in meter["cList"]:
-                    if entry["cVRSt"] in SKIPPED_STATUSES:
+                    # cVRSt is only present when the reading has a flag
+                    # ("D" adjusted, "M" rounding-corrected, "U" unusable,
+                    # "N" comm error, etc.). Absence == normal good reading.
+                    status = entry.get("cVRSt") or ""
+                    if status in SKIPPED_STATUSES:
                         continue
-                    # cDt is end-of-hour in Latvia local time. Parse with TZ
-                    # awareness, normalize to Riga, back off by 1h.
-                    cdt_end = datetime.fromisoformat(entry["cDt"]).astimezone(RIGA_TZ)
+
+                    cdt_str = entry.get("cDt")
+                    if not cdt_str:
+                        _LOGGER.debug("Skipping consumption entry without cDt: %r", entry)
+                        continue
+
+                    # Pick the configured field, fall back to the other if
+                    # the API only sent one of the pair.
+                    raw = (
+                        entry.get("cVV")
+                        if field_name == CONSUMPTION_FIELD_BILLING
+                        else entry.get("cVR")
+                    )
+                    if raw is None:
+                        raw = (
+                            entry.get("cVR")
+                            if field_name == CONSUMPTION_FIELD_BILLING
+                            else entry.get("cVV")
+                        )
+                    if raw is None:
+                        _LOGGER.debug(
+                            "Skipping consumption entry without cVR/cVV: %r",
+                            entry,
+                        )
+                        continue
+
+                    try:
+                        cdt_end = datetime.fromisoformat(cdt_str).astimezone(RIGA_TZ)
+                    except (TypeError, ValueError):
+                        _LOGGER.debug(
+                            "Skipping consumption entry with bad cDt: %r",
+                            cdt_str,
+                        )
+                        continue
+
                     start = cdt_end - timedelta(hours=1)
-                    raw = entry["cVV"] if field_name == CONSUMPTION_FIELD_BILLING else entry["cVR"]
                     snapshot.hourly[start] = float(raw)
-                    snapshot.statuses[start] = entry["cVRSt"]
+                    snapshot.statuses[start] = status
 
         # Bound memory.
         cutoff = datetime.now(RIGA_TZ) - _IN_MEMORY_RETENTION
