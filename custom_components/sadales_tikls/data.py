@@ -1,11 +1,7 @@
 """Runtime data attached to a Sadales Tīkls config entry.
 
-Uses the modern Home Assistant `ConfigEntry[T]` + `entry.runtime_data` pattern
-(2024.11+). Runtime data is *not* persisted; only `entry.data` and
-`entry.options` are. Anything in here is recreated on every entry load.
-
-Step 2 (this step) only stores the API client. The coordinator is wired in
-step 3 and added to this dataclass at that time.
+Uses the modern HA `ConfigEntry[T]` + `entry.runtime_data` pattern. Runtime
+data is *not* persisted; only `entry.data` and `entry.options` are.
 """
 
 from __future__ import annotations
@@ -17,6 +13,7 @@ if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
 
     from .api import SadalesTiklsAPI
+    from .coordinator import SadalesTiklsCoordinator
 
 
 @dataclass(slots=True)
@@ -24,7 +21,7 @@ class SadalesTiklsRuntimeData:
     """Per-entry runtime objects, attached to `entry.runtime_data`."""
 
     api: SadalesTiklsAPI
-    # coordinator: SadalesTiklsCoordinator   # populated in step 3
+    coordinator: SadalesTiklsCoordinator
 
 
 if TYPE_CHECKING:

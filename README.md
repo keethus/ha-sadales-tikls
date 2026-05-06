@@ -3,18 +3,11 @@
 [![GitHub Release][release-shield]][release]
 [![License][license-shield]](LICENSE)
 [![hacs][hacs-shield]][hacs]
-![Project Stage][stage-shield]
 
 _Custom Home Assistant integration for the Latvian electricity distribution
 operator [**Sadales Tīkls**](https://sadalestikls.lv/) — pulls hourly
 consumption data from the M2M API into Home Assistant for one or more
 objects (homes, offices, warehouses) on your account._
-
-> ⚠️ **Project stage: alpha — under active development.**
-> Step 1 (API client + skeleton) is in place. Config flow, coordinator,
-> external-statistics ingestion, and sensors land in subsequent steps.
-> Track progress in the
-> [issues](https://github.com/keethus/ha-sadales-tikls/issues).
 
 ## Table of contents
 
@@ -202,4 +195,3 @@ This project is not affiliated with AS *Sadales Tīkls*.
 [license-shield]: https://img.shields.io/github/license/keethus/ha-sadales-tikls?style=flat-square
 [hacs-shield]: https://img.shields.io/badge/HACS-Custom-orange.svg?style=flat-square
 [hacs]: https://github.com/hacs/integration
-[stage-shield]: https://img.shields.io/badge/project%20stage-alpha-yellow.svg?style=flat-square

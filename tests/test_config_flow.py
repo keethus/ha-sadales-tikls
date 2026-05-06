@@ -59,8 +59,11 @@ def _stub_object_list_ok(m: aioresponses, payload: dict[str, Any], *, repeat: bo
     m.get(OBJECT_LIST_URL, payload=payload, status=200, repeat=repeat)
 
 
-def _empty_object_list(payload: dict[str, Any]) -> dict[str, Any]:
-    return {**payload, "oList": []}
+def _stub_consumption_empty(m: aioresponses) -> None:
+    """Stub /get-object-consumption with an empty list — coordinator setup
+    succeeds with zero data points (used by options-flow / setup-entry
+    tests that only care about lifecycle, not values)."""
+    m.get(CONSUMPTION_URL_RE, payload=[], status=200, repeat=True)
 
 
 def _inactive_only_object_list(payload: dict[str, Any]) -> dict[str, Any]:
@@ -328,7 +331,7 @@ async def test_options_flow_round_trip(
 
     with aioresponses() as m:
         _stub_object_list_ok(m, object_list_payload, repeat=True)
-        # async_setup_entry validates the key
+        _stub_consumption_empty(m)
         await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done()
 
@@ -376,6 +379,7 @@ async def test_setup_entry_validates_and_loads(
 
     with aioresponses() as m:
         _stub_object_list_ok(m, object_list_payload)
+        _stub_consumption_empty(m)
         ok = await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done()
 
@@ -383,6 +387,7 @@ async def test_setup_entry_validates_and_loads(
     assert entry.state is config_entries.ConfigEntryState.LOADED
     assert entry.runtime_data is not None
     assert entry.runtime_data.api is not None
+    assert entry.runtime_data.coordinator is not None
 
 
 async def test_setup_entry_auth_failure_starts_reauth(

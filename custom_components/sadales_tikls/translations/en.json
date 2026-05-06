@@ -54,5 +54,30 @@
         }
       }
     }
+  },
+  "entity": {
+    "sensor": {
+      "last_hour_consumption": {
+        "name": "Last hour consumption"
+      },
+      "today_consumption": {
+        "name": "Today consumption"
+      },
+      "yesterday_consumption": {
+        "name": "Yesterday consumption"
+      },
+      "month_to_date_consumption": {
+        "name": "Month-to-date consumption"
+      },
+      "previous_month_consumption": {
+        "name": "Previous month consumption"
+      },
+      "data_lag": {
+        "name": "Data lag"
+      },
+      "last_hour_status": {
+        "name": "Last hour status"
+      }
+    }
   }
 }

@@ -54,5 +54,30 @@
         }
       }
     }
+  },
+  "entity": {
+    "sensor": {
+      "last_hour_consumption": {
+        "name": "Pēdējās stundas patēriņš"
+      },
+      "today_consumption": {
+        "name": "Šodienas patēriņš"
+      },
+      "yesterday_consumption": {
+        "name": "Vakardienas patēriņš"
+      },
+      "month_to_date_consumption": {
+        "name": "Mēneša patēriņš"
+      },
+      "previous_month_consumption": {
+        "name": "Iepriekšējā mēneša patēriņš"
+      },
+      "data_lag": {
+        "name": "Datu nokavējums"
+      },
+      "last_hour_status": {
+        "name": "Pēdējās stundas statuss"
+      }
+    }
   }
 }

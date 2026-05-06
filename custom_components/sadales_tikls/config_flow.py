@@ -96,9 +96,6 @@ _USER_SCHEMA = vol.Schema(
 )
 
 
-_REAUTH_SCHEMA = _USER_SCHEMA
-
-
 def _build_objects_schema(
     active_objects: list[ObjectInfo],
     *,
@@ -224,7 +221,6 @@ class SadalesTiklsConfigFlow(ConfigFlow, domain=DOMAIN):
 
     def __init__(self) -> None:
         self._api_key: str | None = None
-        self._customer_eic: str | None = None
         self._customer_name: str | None = None
         self._active_objects: list[ObjectInfo] = []
 
@@ -248,7 +244,6 @@ class SadalesTiklsConfigFlow(ConfigFlow, domain=DOMAIN):
         self._abort_if_unique_id_configured()
 
         self._api_key = api_key
-        self._customer_eic = response["cEIC"]
         self._customer_name = response["cName"]
         self._active_objects = active
 
@@ -304,14 +299,14 @@ class SadalesTiklsConfigFlow(ConfigFlow, domain=DOMAIN):
     ) -> ConfigFlowResult:
         """Ask the user for a new APIKEY; verify it belongs to the same customer."""
         if user_input is None:
-            return self.async_show_form(step_id="reauth_confirm", data_schema=_REAUTH_SCHEMA)
+            return self.async_show_form(step_id="reauth_confirm", data_schema=_USER_SCHEMA)
 
         api_key = user_input[CONF_API_KEY].strip()
         response, errors = await _validate_api_key(self.hass, api_key)
         if errors is not None:
             return self.async_show_form(
                 step_id="reauth_confirm",
-                data_schema=_REAUTH_SCHEMA,
+                data_schema=_USER_SCHEMA,
                 errors=errors,
             )
 
