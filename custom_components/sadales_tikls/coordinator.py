@@ -230,6 +230,13 @@ class SadalesTiklsCoordinator(DataUpdateCoordinator[CoordinatorData]):
                         )
                         continue
 
+                    # cDt is supposed to be exactly on the hour. Real
+                    # responses occasionally include microseconds or are
+                    # off by a fraction of a second; HA's recorder rejects
+                    # timestamps where minute/second != 0. Snap to the hour
+                    # — also makes our in-memory keys hour-aligned so
+                    # retroactive corrections match the same dict key.
+                    cdt_end = cdt_end.replace(minute=0, second=0, microsecond=0)
                     start = cdt_end - timedelta(hours=1)
                     snapshot.hourly[start] = float(raw)
                     snapshot.statuses[start] = status

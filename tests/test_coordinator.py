@@ -175,6 +175,46 @@ async def test_entry_without_cvrst_is_kept(
     assert status == ""
 
 
+async def test_cdt_with_microseconds_is_snapped_to_hour(
+    hass: HomeAssistant, object_list_payload: dict[str, Any]
+) -> None:
+    """HA's recorder rejects external statistics whose `start` has non-zero
+    minute/second. Real Sadales Tīkls cDt occasionally carries microseconds
+    or sub-second drift — we must snap to the hour boundary before storing.
+
+    Regression for `Invalid timestamp: timestamps must be from the top of
+    the hour` we hit on the second real-install attempt.
+    """
+    entry = _entry()
+    entry.add_to_hass(hass)
+
+    raw_entry = {
+        # Microseconds present + an extra second of drift — both would otherwise
+        # propagate into snapshot keys and crash async_add_external_statistics.
+        "cDt": "2026-05-05T04:00:00.123456+03:00",
+        "cVR": 1.5,
+        "cVV": 1.234,
+    }
+    with aioresponses() as m:
+        m.get(OBJECT_LIST_URL, payload=object_list_payload, status=200)
+        m.get(
+            CONSUMPTION_URL_RE,
+            payload=_consumption([raw_entry]),
+            status=200,
+            repeat=True,
+        )
+        await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    snapshot = entry.runtime_data.coordinator.data[TARGET_OEIC]
+    [(start, _)] = list(snapshot.hourly.items())
+    assert start.minute == 0
+    assert start.second == 0
+    assert start.microsecond == 0
+    # And it's the right hour: cDt 04:00 → start 03:00.
+    assert start.hour == 3
+
+
 async def test_entry_without_cdt_is_skipped(
     hass: HomeAssistant, object_list_payload: dict[str, Any]
 ) -> None:
