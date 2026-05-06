@@ -1,0 +1,58 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Sadales Tīkls",
+        "description": "Paste your APIKEY from the Sadales Tīkls customer portal at https://e-st.lv → **Data Services**. The key is stored locally and is never shared.",
+        "data": {
+          "api_key": "APIKEY"
+        }
+      },
+      "objects": {
+        "title": "Select objects to import",
+        "description": "Found {active_count} active object(s) on **{customer_name}**. Choose which to import. You can change this later by removing and re-adding the integration.",
+        "data": {
+          "objects": "Objects"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate Sadales Tīkls",
+        "description": "Your APIKEY is no longer accepted. Generate a new one in the Sadales Tīkls customer portal and paste it below.",
+        "data": {
+          "api_key": "New APIKEY"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "APIKEY rejected by Sadales Tīkls.",
+      "cannot_connect": "Cannot reach the Sadales Tīkls API. Check your internet connection and try again.",
+      "rate_limited": "Sadales Tīkls is rate-limiting requests. Please wait a moment and try again.",
+      "no_objects_selected": "Select at least one object.",
+      "unknown": "Unexpected error talking to Sadales Tīkls."
+    },
+    "abort": {
+      "already_configured": "This Sadales Tīkls account is already configured.",
+      "no_active_objects": "No active objects were found on this account.",
+      "reauth_successful": "Re-authentication successful.",
+      "reauth_account_mismatch": "The new APIKEY belongs to a different Sadales Tīkls customer than this entry. Remove this entry and add a new one instead."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Sadales Tīkls options",
+        "description": "Tune how often consumption data is fetched and which value (raw vs billing) is recorded.",
+        "data": {
+          "update_interval_min": "Update interval (minutes)",
+          "backfill_days": "Backfill window (days)",
+          "consumption_field": "Consumption value"
+        },
+        "data_description": {
+          "update_interval_min": "How often to poll for new hourly readings.",
+          "backfill_days": "Days of history to fetch when the integration first loads (or after raising this value).",
+          "consumption_field": "cVV is the value used for billing (post-corrections). cVR is the raw meter read."
+        }
+      }
+    }
+  }
+}

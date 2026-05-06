@@ -1,0 +1,24 @@
+[project]
+name = "ha-sadales-tikls"
+version = "0.1.0"
+description = "Home Assistant custom integration for Sadales Tīkls (Latvia) M2M API"
+# HA 2025+ requires Python 3.13. We dev/test against the same.
+requires-python = ">=3.13"
+
+# Ruff config lives in `.ruff.toml` (HA / HACS integration_blueprint convention).
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.mypy]
+strict = true
+python_version = "3.13"
+files = ["custom_components/sadales_tikls"]
+warn_unused_ignores = true
+warn_redundant_casts = true
+
+[[tool.mypy.overrides]]
+module = ["homeassistant.*", "aioresponses", "voluptuous"]
+ignore_missing_imports = true

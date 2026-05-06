@@ -1,0 +1,41 @@
+{
+  "cEIC": "12X-CUSTOMER-EXAMPLE0",
+  "cName": "Example Company SIA",
+  "oList": [
+    {
+      "oEIC": "12X-OBJ-OFFICE-RIGA0",
+      "oName": "Riga Office",
+      "oAddr": "Brivibas iela 1, Riga, LV-1010",
+      "oStatus": "A",
+      "mpList": [
+        {
+          "mpNr": "30000000001",
+          "mList": [
+            { "mNr": "M-OFF-001" }
+          ]
+        }
+      ]
+    },
+    {
+      "oEIC": "12X-OBJ-WHSE-RIGA00",
+      "oName": "Riga Warehouse",
+      "oAddr": "Krasta iela 100, Riga, LV-1003",
+      "oStatus": "A",
+      "mpList": [
+        {
+          "mpNr": "30000000002",
+          "mList": [
+            { "mNr": "M-WHS-001" }
+          ]
+        }
+      ]
+    },
+    {
+      "oEIC": "12X-OBJ-OLDSITE00000",
+      "oName": "Decommissioned site",
+      "oAddr": "Daugavpils iela 10, Riga",
+      "oStatus": "I",
+      "mpList": []
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "domain": "sadales_tikls",
+  "name": "Sadales Tīkls",
+  "version": "0.1.0",
+  "documentation": "https://github.com/keethus/ha-sadales-tikls",
+  "issue_tracker": "https://github.com/keethus/ha-sadales-tikls/issues",
+  "codeowners": ["@keethus"],
+  "config_flow": true,
+  "iot_class": "cloud_polling",
+  "integration_type": "hub",
+  "requirements": []
+}

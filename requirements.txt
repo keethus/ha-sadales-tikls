@@ -1,0 +1,15 @@
+# Development & test dependencies — NOT shipped with the integration.
+# The integration's manifest.json keeps `requirements: []` so Home Assistant
+# does not pull anything from PyPI at runtime; only `aiohttp` is used and it
+# already ships with HA core.
+#
+# Named `requirements.txt` to match the ludeeus/integration_blueprint
+# convention used by most HACS integrations.
+
+# pytest-homeassistant-custom-component pulls in homeassistant + voluptuous
+# + aiohttp + pytest + pytest-asyncio + aioresponses transitively. Pinning
+# only this top-level dep keeps test installs aligned with a real HA version.
+pytest-homeassistant-custom-component>=0.13.0
+
+mypy>=1.10
+ruff>=0.6

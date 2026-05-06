@@ -1,0 +1,58 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Pieslēgties Sadales Tīklam",
+        "description": "Ielīmējiet savu APIKEY no Sadales Tīkla klientu portāla https://e-st.lv → **Datu pakalpojumi**. Atslēga tiek saglabāta lokāli un netiek nodota tālāk.",
+        "data": {
+          "api_key": "APIKEY"
+        }
+      },
+      "objects": {
+        "title": "Izvēlieties importējamos objektus",
+        "description": "Klientam **{customer_name}** atrasti {active_count} aktīvi objekti. Izvēlieties, kurus importēt. Šo vēlāk var mainīt, dzēšot un pievienojot integrāciju no jauna.",
+        "data": {
+          "objects": "Objekti"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Atjaunot Sadales Tīkla autentifikāciju",
+        "description": "Jūsu APIKEY vairs netiek pieņemts. Izveidojiet jaunu Sadales Tīkla klientu portālā un ielīmējiet to zemāk.",
+        "data": {
+          "api_key": "Jauns APIKEY"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Sadales Tīkls neatzina APIKEY.",
+      "cannot_connect": "Neizdevās savienoties ar Sadales Tīkla API. Pārbaudiet interneta savienojumu un mēģiniet vēlreiz.",
+      "rate_limited": "Sadales Tīkls ierobežo pieprasījumu skaitu. Lūdzu, mēģiniet pēc brīža.",
+      "no_objects_selected": "Izvēlieties vismaz vienu objektu.",
+      "unknown": "Negaidīta kļūda saziņā ar Sadales Tīklu."
+    },
+    "abort": {
+      "already_configured": "Šis Sadales Tīkla konts jau ir konfigurēts.",
+      "no_active_objects": "Šajā kontā aktīvi objekti nav atrasti.",
+      "reauth_successful": "Autentifikācija veiksmīgi atjaunota.",
+      "reauth_account_mismatch": "Jaunais APIKEY pieder citam Sadales Tīkla klientam, nevis šim ierakstam. Izdzēsiet šo ierakstu un pievienojiet jaunu."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Sadales Tīkla iestatījumi",
+        "description": "Pielāgojiet, cik bieži tiek ielādēti dati un kuru vērtību (jēlu vai norēķinu) saglabāt.",
+        "data": {
+          "update_interval_min": "Atjaunināšanas intervāls (minūtes)",
+          "backfill_days": "Vēsturisko datu logs (dienas)",
+          "consumption_field": "Patēriņa vērtība"
+        },
+        "data_description": {
+          "update_interval_min": "Cik bieži pieprasīt jaunus stundas rādījumus.",
+          "backfill_days": "Cik dienu vēstures ielādēt pirmajā palaišanā (vai pēc šī skaitļa palielināšanas).",
+          "consumption_field": "cVV ir norēķinu vērtība (pēc korekcijām). cVR ir jēlais skaitītāja rādījums."
+        }
+      }
+    }
+  }
+}

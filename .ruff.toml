@@ -1,0 +1,18 @@
+# Ruff config — kept as a top-level file to match the HACS / Home Assistant
+# integration_blueprint convention. Rules are a pragmatic subset; extend as
+# the codebase grows.
+
+target-version = "py313"
+line-length = 100
+
+[lint]
+select = ["E", "F", "I", "UP", "B", "C4", "SIM", "PT", "RET", "TRY"]
+ignore = [
+    "TRY003",   # long messages outside the exception class — fine for our use
+]
+
+[lint.per-file-ignores]
+"tests/**" = ["B011"]
+
+[lint.flake8-pytest-style]
+fixture-parentheses = false

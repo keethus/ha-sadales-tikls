@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+build/
+dist/
+
+# Tests / type checking
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# Editors / tooling
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+.claude/
+
+# Home Assistant local dev
+config/
+.HA_VERSION
+home-assistant_v2.db*
+home-assistant.log*
+
+# Local secrets
+.env
+.env.local
+secrets.yaml
+*.apikey
