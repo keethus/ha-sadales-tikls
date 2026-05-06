@@ -18,6 +18,7 @@ Two flavors of write
 from __future__ import annotations
 
 import logging
+import re
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
@@ -43,9 +44,19 @@ _LOGGER = logging.getLogger(__name__)
 _SUM_LOOKBACK = timedelta(days=400)
 
 
+# Real EICs contain hyphens (e.g. "30X-AAA-BBBB-..."), but HA's recorder
+# validates statistic-id object_ids against `[a-z0-9_]+` only — hyphens are
+# rejected with `Invalid statistic_id`. We sanitize the EIC to satisfy:
+# no leading/trailing/double underscores, only [a-z0-9_].
+_NON_SAFE = re.compile(r"[^a-z0-9_]")
+_RUNS = re.compile(r"_+")
+
+
 def statistic_id_for(o_eic: str) -> str:
     """Statistic id used for the per-object consumption stream."""
-    return f"{STATISTICS_ID_PREFIX}{o_eic.lower()}"
+    safe = _NON_SAFE.sub("_", o_eic.lower())
+    safe = _RUNS.sub("_", safe).strip("_")
+    return f"{STATISTICS_ID_PREFIX}{safe}"
 
 
 async def async_write_object_statistics(
