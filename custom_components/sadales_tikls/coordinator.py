@@ -208,7 +208,7 @@ class SadalesTiklsCoordinator(DataUpdateCoordinator[CoordinatorData]):
                     if not cdt_str:
                         _LOGGER.debug("Skipping consumption entry without cDt: %r", entry)
                         continue
-
+ 
                     # Pick the configured field, fall back to the other if
                     # the API only sent one of the pair.
                     raw = (

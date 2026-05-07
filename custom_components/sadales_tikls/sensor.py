@@ -192,7 +192,10 @@ SENSOR_DESCRIPTIONS: tuple[SadalesTiklsSensorDescription, ...] = (
         key="most_recent_hour_consumption",
         translation_key="most_recent_hour_consumption",
         device_class=SensorDeviceClass.ENERGY,
-        state_class=SensorStateClass.MEASUREMENT,
+        # ENERGY device_class only accepts TOTAL or TOTAL_INCREASING (or no
+        # state_class). MEASUREMENT triggers a HA warning. Each hourly value
+        # is a discrete period total, so TOTAL is correct.
+        state_class=SensorStateClass.TOTAL,
         native_unit_of_measurement=_ENERGY_KWH,
         entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=_most_recent_hour_value,
