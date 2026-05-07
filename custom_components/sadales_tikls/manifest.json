@@ -1,7 +1,7 @@
 {
   "domain": "sadales_tikls",
   "name": "Sadales Tīkls",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "documentation": "https://github.com/keethus/ha-sadales-tikls",
   "issue_tracker": "https://github.com/keethus/ha-sadales-tikls/issues",
   "codeowners": ["@keethus"],
