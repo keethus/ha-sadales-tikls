@@ -42,6 +42,7 @@ from .const import (
     DOMAIN,
     RECENT_FETCH_HOURS,
     SKIPPED_STATUSES,
+    STATUS_INCOMPLETE,
 )
 
 if TYPE_CHECKING:
@@ -209,19 +210,32 @@ class SadalesTiklsCoordinator(DataUpdateCoordinator[CoordinatorData]):
                         _LOGGER.debug("Skipping consumption entry without cDt: %r", entry)
                         continue
  
-                    # Pick the configured field, fall back to the other if
-                    # the API only sent one of the pair.
-                    raw = (
-                        entry.get("cVV")
+                    # Pick the consumption value. The user configures a
+                    # primary field (cVV = billing-finalized value,
+                    # cVR = raw meter read). In steady state the two
+                    # match. But for recently published hours, Sadales
+                    # Tīkls populates cVR immediately while leaving cVV
+                    # at 0 until the billing pipeline finalizes
+                    # corrections (hours-to-days later). The old "fall
+                    # back only when primary is None" logic stored those
+                    # 0s as if they were real consumption, which made
+                    # yesterday / MTD read 0.00 kWh during the lag
+                    # window — empirically confirmed May 2026.
+                    #
+                    # Prefer a non-zero value from either field. Fall
+                    # back to a zero only if no non-zero is available,
+                    # so legitimate zero-consumption hours (e.g. an
+                    # empty house, an off-grid period) still come
+                    # through.
+                    cvr, cvv = entry.get("cVR"), entry.get("cVV")
+                    preferred = (
+                        (cvv, cvr)
                         if field_name == CONSUMPTION_FIELD_BILLING
-                        else entry.get("cVR")
+                        else (cvr, cvv)
                     )
+                    raw = next((v for v in preferred if v not in (None, 0)), None)
                     if raw is None:
-                        raw = (
-                            entry.get("cVR")
-                            if field_name == CONSUMPTION_FIELD_BILLING
-                            else entry.get("cVV")
-                        )
+                        raw = next((v for v in preferred if v is not None), None)
                     if raw is None:
                         _LOGGER.debug(
                             "Skipping consumption entry without cVR/cVV: %r",
@@ -247,7 +261,31 @@ class SadalesTiklsCoordinator(DataUpdateCoordinator[CoordinatorData]):
                     cdt_end = cdt_end.replace(minute=0, second=0, microsecond=0)
                     start = cdt_end - timedelta(hours=1)
 
-                    incoming[start] = incoming.get(start, 0.0) + float(raw)
+                    # Sadales Tīkls publishes a placeholder row
+                    # (cVR=0, cVV=0, cVRSt="C") for each hour boundary
+                    # the moment it elapses, BEFORE the meter has
+                    # actually reported its read. The real reading lands
+                    # 1–24h later and overwrites the placeholder with
+                    # status "" / D / M / E. Treating placeholders as
+                    # real zeros makes the per-period sensors (yesterday
+                    # / MTD / previous-month) display flat 0.00 kWh for
+                    # the entire publication-lag window — which is what
+                    # was happening on May 2026 when we found this.
+                    # Skip the placeholder; the daily catch-up will pick
+                    # up the real reading. Also evict any stale
+                    # placeholder we previously stored for the same hour
+                    # so user-facing sums stop counting it.
+                    value = float(raw)
+                    if status == STATUS_INCOMPLETE and value == 0.0:
+                        if (
+                            snapshot.statuses.get(start) == STATUS_INCOMPLETE
+                            and snapshot.hourly.get(start) == 0
+                        ):
+                            snapshot.hourly.pop(start, None)
+                            snapshot.statuses.pop(start, None)
+                        continue
+
+                    incoming[start] = incoming.get(start, 0.0) + value
                     # Status: surface any meter's flag if present at this
                     # hour; otherwise empty (= unflagged across all meters).
                     if status or start not in incoming_statuses:

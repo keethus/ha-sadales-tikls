@@ -42,7 +42,7 @@ from homeassistant.const import EntityCategory, UnitOfEnergy, UnitOfTime
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, MANUFACTURER
+from .const import DOMAIN, MANUFACTURER, STATUS_INCOMPLETE
 from .coordinator import RIGA_TZ, ObjectSnapshot, SadalesTiklsCoordinator
 
 if TYPE_CHECKING:
@@ -57,6 +57,29 @@ if TYPE_CHECKING:
 # ---------------------------------------------------------------------------
 
 
+def _is_placeholder(value: float, status: str) -> bool:
+    """Whether a snapshot entry is a Sadales Tīkls placeholder row.
+
+    ST's M2M endpoint publishes a (cVR=0, cVV=0, cVRSt="C") row for
+    each hour boundary the moment it elapses, before the meter has
+    actually reported. The real reading lands 1–24h later and
+    overwrites the placeholder. The coordinator filters new
+    placeholders out at merge time; this helper is a second line of
+    defense for any placeholder rows that remain in the snapshot from
+    before the merge-time filter existed.
+    """
+    return value == 0 and status == STATUS_INCOMPLETE
+
+
+def _real_values_for(snap: ObjectSnapshot, predicate: Callable[[datetime], bool]) -> list[float]:
+    """Hourly values matching `predicate`, excluding ST placeholders."""
+    return [
+        v
+        for h, v in snap.hourly.items()
+        if predicate(h) and not _is_placeholder(v, snap.statuses.get(h, ""))
+    ]
+
+
 def _most_recent_hour_value(snap: ObjectSnapshot, _now: datetime) -> float | None:
     if not snap.hourly:
         return None
@@ -64,24 +87,31 @@ def _most_recent_hour_value(snap: ObjectSnapshot, _now: datetime) -> float | Non
     return round(snap.hourly[last_key], 3)
 
 
-def _yesterday_consumption(snap: ObjectSnapshot, now: datetime) -> float:
+def _yesterday_consumption(snap: ObjectSnapshot, now: datetime) -> float | None:
     yesterday = (now - timedelta(days=1)).date()
-    return round(sum(v for h, v in snap.hourly.items() if h.date() == yesterday), 3)
+    values = _real_values_for(snap, lambda h: h.date() == yesterday)
+    if not values:
+        # No real readings for yesterday yet — report Unknown rather
+        # than a misleading 0.00 kWh while ST hasn't published.
+        return None
+    return round(sum(values), 3)
 
 
-def _month_to_date(snap: ObjectSnapshot, now: datetime) -> float:
-    return round(
-        sum(v for h, v in snap.hourly.items() if h.year == now.year and h.month == now.month),
-        3,
+def _month_to_date(snap: ObjectSnapshot, now: datetime) -> float | None:
+    values = _real_values_for(
+        snap, lambda h: h.year == now.year and h.month == now.month
     )
+    if not values:
+        return None
+    return round(sum(values), 3)
 
 
-def _previous_month(snap: ObjectSnapshot, now: datetime) -> float:
+def _previous_month(snap: ObjectSnapshot, now: datetime) -> float | None:
     py, pm = _previous_month_yearmonth(now)
-    return round(
-        sum(v for h, v in snap.hourly.items() if h.year == py and h.month == pm),
-        3,
-    )
+    values = _real_values_for(snap, lambda h: h.year == py and h.month == pm)
+    if not values:
+        return None
+    return round(sum(values), 3)
 
 
 def _data_lag_hours(snap: ObjectSnapshot, now: datetime) -> float | None:
