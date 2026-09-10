@@ -127,6 +127,19 @@ def _most_recent_hour_status(snap: ObjectSnapshot, _now: datetime) -> str | None
     return snap.statuses[max(snap.statuses)]
 
 
+def _data_lag_attrs(snap: ObjectSnapshot, _now: datetime) -> dict[str, Any]:
+    """Surface the coordinator's per-poll skip counters.
+
+    Without this, an empty `yesterday` sensor is indistinguishable from
+    inside HA — was the API empty? Were rows skipped as placeholders?
+    Were they status N (comm error from the meter)? The counters make
+    the answer one glance at Developer Tools → States away.
+    """
+    if snap.last_merge is None:
+        return {}
+    return {"last_merge": snap.last_merge}
+
+
 # ---------------------------------------------------------------------------
 # Attribute functions — produce the chart-friendly breakdowns.
 # ---------------------------------------------------------------------------
@@ -237,6 +250,7 @@ SENSOR_DESCRIPTIONS: tuple[SadalesTiklsSensorDescription, ...] = (
         native_unit_of_measurement=UnitOfTime.HOURS,
         entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=_data_lag_hours,
+        attrs_fn=_data_lag_attrs,
     ),
     SadalesTiklsSensorDescription(
         key="most_recent_hour_status",

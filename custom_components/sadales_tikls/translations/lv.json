@@ -45,14 +45,25 @@
         "data": {
           "update_interval_min": "Atjaunināšanas intervāls (minūtes)",
           "backfill_days": "Vēsturisko datu logs (dienas)",
-          "consumption_field": "Patēriņa vērtība"
+          "consumption_field": "Patēriņa vērtība",
+          "cost_enabled": "Uzskaitīt izmaksas",
+          "cost_price_entity": "Cenas entītija (EUR/kWh)",
+          "cost_extra_eur_kwh": "Papildu izmaksas par kWh (EUR)",
+          "cost_vat_pct": "PVN (%)"
         },
         "data_description": {
           "update_interval_min": "Cik bieži pieprasīt jaunus stundas rādījumus.",
           "backfill_days": "Cik dienu vēstures ielādēt pirmajā palaišanā (vai pēc šī skaitļa palielināšanas).",
-          "consumption_field": "cVV ir norēķinu vērtība (pēc korekcijām). cVR ir jēlais skaitītāja rādījums."
+          "consumption_field": "cVV ir norēķinu vērtība (pēc korekcijām). cVR ir jēlais skaitītāja rādījums.",
+          "cost_enabled": "Izveido otru statistiku, ko Energy dashboard var izvēlēties kā tīkla avota izmaksas. Aizpilda arī visas stundas, kurām patēriņa dati jau ir.",
+          "cost_price_entity": "Biržas cenas sensors, piemēram Nordpool. Tiek lietota tā stundu ilgtermiņa statistika, tāpēc arī vēsture tiek aprēķināta.",
+          "cost_extra_eur_kwh": "Sadales tarifs un obligātā iepirkuma komponente, ko pieskaita biržas cenai. Atstāj 0, lai rēķinātu tikai biržas daļu.",
+          "cost_vat_pct": "Tiek piemērots biržas cenas un papildu izmaksu summai."
         }
       }
+    },
+    "error": {
+      "price_entity_required": "Izvēlies cenas entītiju vai izslēdz izmaksu uzskaiti."
     }
   },
   "entity": {

@@ -22,7 +22,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from zoneinfo import ZoneInfo
 
 from homeassistant.exceptions import ConfigEntryAuthFailed
@@ -32,12 +32,19 @@ from .api import SadalesTiklsAuthError, SadalesTiklsError
 from .const import (
     CONF_BACKFILL_DAYS,
     CONF_CONSUMPTION_FIELD,
+    CONF_COST_ENABLED,
+    CONF_COST_EXTRA_EUR_KWH,
+    CONF_COST_PRICE_ENTITY,
+    CONF_COST_VAT_PCT,
     CONF_OBJECTS,
     CONF_UPDATE_INTERVAL,
     CONSUMPTION_FIELD_BILLING,
     DAILY_CATCHUP_DAYS,
     DEFAULT_BACKFILL_DAYS,
     DEFAULT_CONSUMPTION_FIELD,
+    DEFAULT_COST_ENABLED,
+    DEFAULT_COST_EXTRA_EUR_KWH,
+    DEFAULT_COST_VAT_PCT,
     DEFAULT_UPDATE_INTERVAL_MIN,
     DOMAIN,
     RECENT_FETCH_HOURS,
@@ -74,6 +81,12 @@ class ObjectSnapshot:
     # are *excluded* — sensors and stats simply have no value for them.
     hourly: dict[datetime, float] = field(default_factory=dict)
     statuses: dict[datetime, str] = field(default_factory=dict)
+    # Diagnostic counters from the last merge into this snapshot. Exposed
+    # as attributes on the data_lag sensor so users can see at a glance
+    # whether the M2M endpoint is returning real data, placeholders, or
+    # status-skipped (N / U) rows — without needing to enable DEBUG
+    # logging or shell into the HA host.
+    last_merge: dict[str, Any] | None = field(default=None)
 
 
 type CoordinatorData = dict[str, ObjectSnapshot]
@@ -114,8 +127,31 @@ class SadalesTiklsCoordinator(DataUpdateCoordinator[CoordinatorData]):
     def backfill_days(self) -> int:
         return int(self.config_entry.options.get(CONF_BACKFILL_DAYS, DEFAULT_BACKFILL_DAYS))
 
+    @property
+    def cost_enabled(self) -> bool:
+        """True iff a cost statistic should be maintained alongside kWh."""
+        opts = self.config_entry.options
+        return bool(opts.get(CONF_COST_ENABLED, DEFAULT_COST_ENABLED)) and bool(
+            opts.get(CONF_COST_PRICE_ENTITY)
+        )
+
+    @property
+    def cost_price_entity(self) -> str:
+        return str(self.config_entry.options.get(CONF_COST_PRICE_ENTITY, ""))
+
+    @property
+    def cost_extra_eur_kwh(self) -> float:
+        return float(
+            self.config_entry.options.get(CONF_COST_EXTRA_EUR_KWH, DEFAULT_COST_EXTRA_EUR_KWH)
+        )
+
+    @property
+    def cost_vat_pct(self) -> float:
+        return float(self.config_entry.options.get(CONF_COST_VAT_PCT, DEFAULT_COST_VAT_PCT))
+
     async def _async_update_data(self) -> CoordinatorData:
         # Local import: statistics.py imports ObjectSnapshot from this module.
+        from .cost import async_write_object_cost_statistics  # noqa: PLC0415
         from .statistics import async_write_object_statistics  # noqa: PLC0415
 
         now = datetime.now(RIGA_TZ)
@@ -156,6 +192,21 @@ class SadalesTiklsCoordinator(DataUpdateCoordinator[CoordinatorData]):
                 full_recompute=do_catchup,
             )
 
+            if self.cost_enabled:
+                # Same window and the same recompute semantics, so a
+                # retroactive kWh correction reprices the hour it lands in.
+                await async_write_object_cost_statistics(
+                    self.hass,
+                    snapshot,
+                    window_from=d_from,
+                    window_to=d_to,
+                    full_recompute=do_catchup,
+                    price_statistic_id=self.cost_price_entity,
+                    extra_eur_kwh=self.cost_extra_eur_kwh,
+                    vat_pct=self.cost_vat_pct,
+                    currency=self.hass.config.currency or "EUR",
+                )
+
         if had_auth_error:
             raise ConfigEntryAuthFailed("Sadales Tīkls APIKEY rejected")
 
@@ -195,18 +246,35 @@ class SadalesTiklsCoordinator(DataUpdateCoordinator[CoordinatorData]):
         incoming: dict[datetime, float] = {}
         incoming_statuses: dict[datetime, str] = {}
 
+        # Skip counters — exposed via the data_lag sensor's attributes so
+        # users can see exactly why an empty snapshot is empty (placeholder
+        # rows? status N from the meter? truly nothing in the response?).
+        counts = {
+            "received": 0,
+            "stored": 0,
+            "skipped_status_NU": 0,   # cVRSt in {N: comm error, U: unusable}
+            "skipped_no_cDt": 0,
+            "skipped_no_value": 0,    # both cVR and cVV missing
+            "skipped_bad_cDt": 0,
+            "skipped_placeholder": 0, # cVR=0 AND cVV=0 with status C
+            "status_counts": {},      # cVRSt → occurrences (kept entries only)
+        }
+
         for mp in response:
             for meter in mp["mList"]:
                 for entry in meter["cList"]:
+                    counts["received"] += 1
                     # cVRSt is only present when the reading has a flag
                     # ("D" adjusted, "M" rounding-corrected, "U" unusable,
                     # "N" comm error, etc.). Absence == normal good reading.
                     status = entry.get("cVRSt") or ""
                     if status in SKIPPED_STATUSES:
+                        counts["skipped_status_NU"] += 1
                         continue
 
                     cdt_str = entry.get("cDt")
                     if not cdt_str:
+                        counts["skipped_no_cDt"] += 1
                         _LOGGER.debug("Skipping consumption entry without cDt: %r", entry)
                         continue
  
@@ -237,6 +305,7 @@ class SadalesTiklsCoordinator(DataUpdateCoordinator[CoordinatorData]):
                     if raw is None:
                         raw = next((v for v in preferred if v is not None), None)
                     if raw is None:
+                        counts["skipped_no_value"] += 1
                         _LOGGER.debug(
                             "Skipping consumption entry without cVR/cVV: %r",
                             entry,
@@ -246,6 +315,7 @@ class SadalesTiklsCoordinator(DataUpdateCoordinator[CoordinatorData]):
                     try:
                         cdt_end = datetime.fromisoformat(cdt_str).astimezone(RIGA_TZ)
                     except (TypeError, ValueError):
+                        counts["skipped_bad_cDt"] += 1
                         _LOGGER.debug(
                             "Skipping consumption entry with bad cDt: %r",
                             cdt_str,
@@ -277,6 +347,7 @@ class SadalesTiklsCoordinator(DataUpdateCoordinator[CoordinatorData]):
                     # so user-facing sums stop counting it.
                     value = float(raw)
                     if status == STATUS_INCOMPLETE and value == 0.0:
+                        counts["skipped_placeholder"] += 1
                         if (
                             snapshot.statuses.get(start) == STATUS_INCOMPLETE
                             and snapshot.hourly.get(start) == 0
@@ -285,6 +356,9 @@ class SadalesTiklsCoordinator(DataUpdateCoordinator[CoordinatorData]):
                             snapshot.statuses.pop(start, None)
                         continue
 
+                    counts["status_counts"][status or "(none)"] = (
+                        counts["status_counts"].get(status or "(none)", 0) + 1
+                    )
                     incoming[start] = incoming.get(start, 0.0) + value
                     # Status: surface any meter's flag if present at this
                     # hour; otherwise empty (= unflagged across all meters).
@@ -297,6 +371,33 @@ class SadalesTiklsCoordinator(DataUpdateCoordinator[CoordinatorData]):
         for hour, value in incoming.items():
             snapshot.hourly[hour] = value
             snapshot.statuses[hour] = incoming_statuses.get(hour, "")
+
+        counts["stored"] = len(incoming)
+        snapshot.last_merge = counts
+
+        # Visible-by-default summary. WARNING when we received entries but
+        # stored none — that's the silent-failure mode we want the user to
+        # notice without enabling DEBUG. INFO otherwise.
+        summary = (
+            "Sadales Tīkls merge for %s: received=%d stored=%d "
+            "skipped(status_NU/no_cDt/no_value/bad_cDt/placeholder)="
+            "%d/%d/%d/%d/%d statuses=%s"
+        )
+        args = (
+            o_eic,
+            counts["received"],
+            counts["stored"],
+            counts["skipped_status_NU"],
+            counts["skipped_no_cDt"],
+            counts["skipped_no_value"],
+            counts["skipped_bad_cDt"],
+            counts["skipped_placeholder"],
+            counts["status_counts"],
+        )
+        if counts["received"] > 0 and counts["stored"] == 0:
+            _LOGGER.warning(summary, *args)
+        else:
+            _LOGGER.info(summary, *args)
 
         # Bound memory.
         cutoff = datetime.now(RIGA_TZ) - _IN_MEMORY_RETENTION

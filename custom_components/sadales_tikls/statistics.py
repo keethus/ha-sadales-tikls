@@ -52,11 +52,15 @@ _NON_SAFE = re.compile(r"[^a-z0-9_]")
 _RUNS = re.compile(r"_+")
 
 
+def _safe_eic(o_eic: str) -> str:
+    """EIC reduced to the `[a-z0-9_]+` object_id the recorder accepts."""
+    safe = _NON_SAFE.sub("_", o_eic.lower())
+    return _RUNS.sub("_", safe).strip("_")
+
+
 def statistic_id_for(o_eic: str) -> str:
     """Statistic id used for the per-object consumption stream."""
-    safe = _NON_SAFE.sub("_", o_eic.lower())
-    safe = _RUNS.sub("_", safe).strip("_")
-    return f"{STATISTICS_ID_PREFIX}{safe}"
+    return f"{STATISTICS_ID_PREFIX}{_safe_eic(o_eic)}"
 
 
 async def async_write_object_statistics(

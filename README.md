@@ -112,6 +112,9 @@ Plus the **external statistics stream** `sadales_tikls:consumption_<oeic>`
 that backs the Energy Dashboard — this is *not* a HA entity, it's a
 long-term-statistics source.
 
+With cost tracking enabled there is a second stream,
+`sadales_tikls:cost_<oeic>`, in your HA currency.
+
 ## Options
 
 Configurable per integration entry (Settings → Devices & Services → Sadales
@@ -123,6 +126,33 @@ Tīkls → Configure):
 | Backfill window     | 30 days | 0 – 365        | Days of history fetched on first setup.                                            |
 | Consumption value   | `cVV`   | `cVR` / `cVV`  | `cVR` = raw meter read, `cVV` = post-correction (billing). `cVV` is recommended.   |
 | Selected objects    | all active | —          | Which `oEIC`s on your account to import.                                           |
+| Track cost          | off     | on / off       | Also write a `sadales_tikls:cost_<oeic>` statistic (see below).                     |
+| Price entity        | —       | any sensor     | Spot-price sensor in EUR/kWh, e.g. Nordpool. Required when cost tracking is on.     |
+| Additional cost/kWh | 0       | 0 – 5 EUR      | Distribution tariff + mandatory procurement, added to the spot price.               |
+| VAT                 | 21 %    | 0 – 100 %      | Applied to (spot + additional).                                                     |
+
+### Cost tracking
+
+The Energy Dashboard can only price a grid source itself when that source
+is a real sensor: it multiplies recorder *states* by the price at the time.
+External statistics have no states, so HA refuses entity/number pricing for
+them and asks for a ready-made cost statistic (`stat_cost`) instead.
+
+Enabling **Track cost** writes that statistic. The hourly price is read from
+the chosen price entity's own long-term statistics, which means enabling it
+**also prices every hour of history you already have** — not just from now
+on. Per hour:
+
+```
+cost = kWh × (spot + additional) × (1 + VAT)
+```
+
+Then pick it in **Settings → Dashboards → Energy → Grid consumption → Use a
+statistic** for the cost field.
+
+Hours that have consumption but no price statistic are skipped rather than
+guessed, so a gap in price history shows up as a gap in cost instead of a
+quietly wrong total.
 
 ## Troubleshooting
 

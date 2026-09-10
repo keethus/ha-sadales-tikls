@@ -66,7 +66,16 @@ from .const import (
     DEFAULT_CONSUMPTION_FIELD,
     DEFAULT_UPDATE_INTERVAL_MIN,
     DOMAIN,
+    CONF_COST_ENABLED,
+    CONF_COST_EXTRA_EUR_KWH,
+    CONF_COST_PRICE_ENTITY,
+    CONF_COST_VAT_PCT,
+    DEFAULT_COST_ENABLED,
+    DEFAULT_COST_EXTRA_EUR_KWH,
+    DEFAULT_COST_VAT_PCT,
     MAX_BACKFILL_DAYS,
+    MAX_COST_EXTRA_EUR_KWH,
+    MAX_COST_VAT_PCT,
     MAX_UPDATE_INTERVAL_MIN,
     MIN_BACKFILL_DAYS,
     MIN_UPDATE_INTERVAL_MIN,
@@ -174,6 +183,40 @@ def _build_options_schema(current: dict[str, Any]) -> vol.Schema:
                 selector.SelectSelectorConfig(
                     options=_CONSUMPTION_FIELD_OPTIONS,
                     mode=selector.SelectSelectorMode.DROPDOWN,
+                )
+            ),
+            # --- cost stream (optional) -----------------------------------
+            vol.Required(
+                CONF_COST_ENABLED,
+                default=current.get(CONF_COST_ENABLED, DEFAULT_COST_ENABLED),
+            ): selector.BooleanSelector(),
+            vol.Optional(
+                CONF_COST_PRICE_ENTITY,
+                description={"suggested_value": current.get(CONF_COST_PRICE_ENTITY)},
+            ): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="sensor")
+            ),
+            vol.Required(
+                CONF_COST_EXTRA_EUR_KWH,
+                default=current.get(CONF_COST_EXTRA_EUR_KWH, DEFAULT_COST_EXTRA_EUR_KWH),
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=0,
+                    max=MAX_COST_EXTRA_EUR_KWH,
+                    step=0.00001,
+                    mode=selector.NumberSelectorMode.BOX,
+                )
+            ),
+            vol.Required(
+                CONF_COST_VAT_PCT,
+                default=current.get(CONF_COST_VAT_PCT, DEFAULT_COST_VAT_PCT),
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=0,
+                    max=MAX_COST_VAT_PCT,
+                    step=0.1,
+                    unit_of_measurement="%",
+                    mode=selector.NumberSelectorMode.BOX,
                 )
             ),
         }
@@ -355,7 +398,23 @@ class SadalesTiklsOptionsFlow(OptionsFlow):
                 CONF_UPDATE_INTERVAL: int(user_input[CONF_UPDATE_INTERVAL]),
                 CONF_BACKFILL_DAYS: int(user_input[CONF_BACKFILL_DAYS]),
                 CONF_CONSUMPTION_FIELD: user_input[CONF_CONSUMPTION_FIELD],
+                CONF_COST_ENABLED: bool(user_input.get(CONF_COST_ENABLED, False)),
+                CONF_COST_PRICE_ENTITY: user_input.get(CONF_COST_PRICE_ENTITY) or "",
+                CONF_COST_EXTRA_EUR_KWH: float(
+                    user_input.get(CONF_COST_EXTRA_EUR_KWH, DEFAULT_COST_EXTRA_EUR_KWH)
+                ),
+                CONF_COST_VAT_PCT: float(
+                    user_input.get(CONF_COST_VAT_PCT, DEFAULT_COST_VAT_PCT)
+                ),
             }
+            # Asking for cost without naming a price entity would silently
+            # do nothing; surface it in the form instead.
+            if cleaned[CONF_COST_ENABLED] and not cleaned[CONF_COST_PRICE_ENTITY]:
+                return self.async_show_form(
+                    step_id="init",
+                    data_schema=_build_options_schema({**dict(self._entry.options), **cleaned}),
+                    errors={CONF_COST_PRICE_ENTITY: "price_entity_required"},
+                )
             return self.async_create_entry(title="", data=cleaned)
 
         return self.async_show_form(
