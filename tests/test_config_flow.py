@@ -10,6 +10,7 @@ Flows under test:
   * reauth flow: account-mismatch abort
   * reauth flow: invalid key re-shows form
   * options flow: edits round-trip into entry.options
+  * options flow: every selector config is constructible (bad step → HTTP 400)
   * `async_setup_entry`: ConfigEntryAuthFailed triggers reauth path
   * `async_setup_entry`: ConfigEntryNotReady on connection error
 """
@@ -430,3 +431,28 @@ async def test_setup_entry_connection_error_is_retryable(
         await hass.async_block_till_done()
 
     assert entry.state is config_entries.ConfigEntryState.SETUP_RETRY
+
+
+def test_options_schema_selector_configs_are_valid() -> None:
+    """Every selector in the options schema must accept its own config.
+
+    Selector configs are validated at construction time, and a bad one
+    raises `vol.Invalid` from inside the HTTP view — which Home Assistant
+    turns into a bare `400 Bad Request` with *no* log line, so the options
+    dialog just fails to open. Build the schema both empty and populated so
+    that never ships again.
+    """
+    from custom_components.sadales_tikls.config_flow import _build_options_schema
+
+    _build_options_schema({})
+    _build_options_schema(
+        {
+            CONF_UPDATE_INTERVAL: 60,
+            CONF_BACKFILL_DAYS: 30,
+            CONF_CONSUMPTION_FIELD: CONSUMPTION_FIELD_RAW,
+            "cost_enabled": True,
+            "cost_price_entity": "sensor.spot_price",
+            "cost_extra_eur_kwh": 0.04729,
+            "cost_vat_pct": 21.0,
+        }
+    )

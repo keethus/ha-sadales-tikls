@@ -1,0 +1,44 @@
+name: Release
+
+# The version in manifest.json is the single source of truth: push a bump to
+# main and this tags it and publishes the release HACS installs from. No
+# manual tagging, and the tag can never disagree with the manifest.
+on:
+  push:
+    branches: [main]
+    paths:
+      - custom_components/sadales_tikls/manifest.json
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read version from manifest
+        id: manifest
+        run: |
+          version=$(python -c "import json;print(json.load(open('custom_components/sadales_tikls/manifest.json'))['version'])")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if git rev-parse -q --verify "refs/tags/v$version" >/dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish release
+        if: steps.manifest.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.manifest.outputs.version }}
+        run: |
+          gh release create "v$VERSION" \
+            --title "v$VERSION" \
+            --generate-notes \
+            --target "$GITHUB_SHA"

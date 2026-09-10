@@ -203,7 +203,11 @@ def _build_options_schema(current: dict[str, Any]) -> vol.Schema:
                 selector.NumberSelectorConfig(
                     min=0,
                     max=MAX_COST_EXTRA_EUR_KWH,
-                    step=0.00001,
+                    # HA rejects a step below 1e-3 (vol.Range(min=1e-3)) and the
+                    # resulting vol.Invalid surfaces as a bare HTTP 400 with no
+                    # log line. Tariffs need ~5 decimals, so ask for free input.
+                    step="any",
+                    unit_of_measurement="EUR/kWh",
                     mode=selector.NumberSelectorMode.BOX,
                 )
             ),
