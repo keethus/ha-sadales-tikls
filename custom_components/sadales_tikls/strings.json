@@ -45,14 +45,25 @@
         "data": {
           "update_interval_min": "Update interval (minutes)",
           "backfill_days": "Backfill window (days)",
-          "consumption_field": "Consumption value"
+          "consumption_field": "Consumption value",
+          "cost_enabled": "Track cost",
+          "cost_price_entity": "Price entity (EUR/kWh)",
+          "cost_extra_eur_kwh": "Additional cost per kWh (EUR)",
+          "cost_vat_pct": "VAT (%)"
         },
         "data_description": {
           "update_interval_min": "How often to poll for new hourly readings.",
           "backfill_days": "Days of history to fetch when the integration first loads (or after raising this value).",
-          "consumption_field": "cVV is the value used for billing (post-corrections). cVR is the raw meter read."
+          "consumption_field": "cVV is the value used for billing (post-corrections). cVR is the raw meter read.",
+          "cost_enabled": "Writes a second statistic you can select as the grid source's cost in the Energy Dashboard. Backfills every hour that already has consumption data.",
+          "cost_price_entity": "A spot-price sensor, e.g. Nordpool. Its hourly long-term statistics are used, so history is priced too.",
+          "cost_extra_eur_kwh": "Distribution tariff plus the mandatory procurement component, added on top of the spot price. Leave at 0 to price the spot component only.",
+          "cost_vat_pct": "Applied to the sum of spot price and additional cost."
         }
       }
+    },
+    "error": {
+      "price_entity_required": "Pick a price entity, or turn cost tracking off."
     }
   },
   "entity": {

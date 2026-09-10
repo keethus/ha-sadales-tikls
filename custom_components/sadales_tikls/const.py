@@ -28,6 +28,11 @@ STATISTICS_SOURCE: Final = DOMAIN
 STATISTICS_ID_PREFIX: Final = f"{DOMAIN}:consumption_"
 STATISTICS_UNIT: Final = "kWh"
 
+# Cost stream. The Energy Dashboard rejects entity/number pricing for
+# external statistics and wants a ready-made cost statistic instead
+# (`stat_cost`); see cost.py for the reasoning.
+STATISTICS_COST_ID_PREFIX: Final = f"{DOMAIN}:cost_"
+
 # --- Coordinator / scheduling ------------------------------------------------
 
 DEFAULT_UPDATE_INTERVAL_MIN: Final = 60
@@ -81,3 +86,18 @@ CONF_OBJECTS: Final = "objects"
 CONF_UPDATE_INTERVAL: Final = "update_interval_min"
 CONF_BACKFILL_DAYS: Final = "backfill_days"
 CONF_CONSUMPTION_FIELD: Final = "consumption_field"
+
+# --- Cost options -------------------------------------------------------------
+
+CONF_COST_ENABLED: Final = "cost_enabled"
+CONF_COST_PRICE_ENTITY: Final = "cost_price_entity"
+CONF_COST_EXTRA_EUR_KWH: Final = "cost_extra_eur_kwh"
+CONF_COST_VAT_PCT: Final = "cost_vat_pct"
+
+DEFAULT_COST_ENABLED: Final = False
+# Spot price alone is not the invoice: the distribution tariff and the
+# mandatory procurement component are added per kWh on top of it.
+DEFAULT_COST_EXTRA_EUR_KWH: Final = 0.0
+DEFAULT_COST_VAT_PCT: Final = 21.0
+MAX_COST_EXTRA_EUR_KWH: Final = 5.0
+MAX_COST_VAT_PCT: Final = 100.0
